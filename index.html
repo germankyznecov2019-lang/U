@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Minecraft Bet Game</title>
+<style>
+    body {
+        margin: 0;
+        background: #87CEEB;
+        font-family: Arial, sans-serif;
+        text-align: center;
+    }
+
+    #gameUI {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.7);
+        padding: 15px;
+        border-radius: 10px;
+        color: white;
+    }
+
+    input {
+        padding: 5px;
+        width: 100px;
+    }
+
+    button {
+        padding: 6px 15px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    canvas {
+        display: block;
+    }
+</style>
+</head>
+<body>
+
+<div id="gameUI">
+    Ставка: <input type="number" id="bet" value="10" min="1">
+    <button onclick="startGame()">START</button>
+    <div>Множитель: <span id="multiplier">1.00x</span></div>
+    <div id="result"></div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let gameRunning = false;
+let multiplier = 1;
+let crashPoint = 0;
+
+function startGame() {
+    if (gameRunning) return;
+
+    const bet = parseFloat(document.getElementById("bet").value);
+    if (!bet || bet <= 0) {
+        alert("Введите ставку!");
+        return;
+    }
+
+    multiplier = 1;
+    crashPoint = Math.random() * 5 + 1; // случайный краш от 1x до 6x
+    gameRunning = true;
+    document.getElementById("result").innerText = "";
+    updateGame();
+}
+
+function updateGame() {
+    if (!gameRunning) return;
+
+    multiplier += 0.02;
+
+    if (multiplier >= crashPoint) {
+        gameRunning = false;
+        document.getElementById("result").innerText = 
+            "💥 Краш на " + crashPoint.toFixed(2) + "x";
+        return;
+    }
+
+    document.getElementById("multiplier").innerText = 
+        multiplier.toFixed(2) + "x";
+
+    drawWorld(multiplier);
+    requestAnimationFrame(updateGame);
+}
+
+function drawWorld(heightFactor) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const blockSize = 40;
+    const baseY = canvas.height - 100;
+
+    // трава
+    for (let x = 0; x < canvas.width; x += blockSize) {
+        drawBlock(x, baseY, "#4CAF50");
+        drawBlock(x, baseY + blockSize, "#8B4513");
+    }
+
+    // башня растет
+    const towerHeight = Math.floor(heightFactor * 5);
+    const centerX = canvas.width / 2 - blockSize / 2;
+
+    for (let i = 0; i < towerHeight; i++) {
+        drawBlock(centerX, baseY - blockSize * (i + 1), "#9E9E9E");
+    }
+}
+
+function drawBlock(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, 40, 40);
+    ctx.strokeStyle = "#000";
+    ctx.strokeRect(x, y, 40, 40);
+}
+</script>
+
+</body>
+</html>
