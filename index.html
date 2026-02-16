@@ -3,104 +3,93 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Муринский Переводчик</title>
+<title>Переводчик языка Друн</title>
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background: #0f172a;
-    color: white;
-    margin: 0;
-    padding: 20px;
+body{
+    background:#111;
+    color:white;
+    font-family:Arial;
+    padding:20px;
 }
-.container {
-    max-width: 600px;
-    margin: auto;
+textarea{
+    width:100%;
+    height:120px;
+    margin-bottom:10px;
+    border-radius:10px;
+    border:none;
+    padding:10px;
+    font-size:16px;
 }
-textarea {
-    width: 100%;
-    height: 120px;
-    border-radius: 10px;
-    border: none;
-    padding: 10px;
-    font-size: 16px;
-    margin-bottom: 10px;
+button{
+    width:100%;
+    padding:12px;
+    margin-bottom:10px;
+    border:none;
+    border-radius:10px;
+    font-size:16px;
+    cursor:pointer;
 }
-button {
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 10px;
-    border-radius: 10px;
-    border: none;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-}
-.translate { background: #22c55e; }
-.reverse { background: #3b82f6; }
-.clear { background: #ef4444; }
-.result {
-    background: #1e293b;
-    padding: 15px;
-    border-radius: 10px;
-    min-height: 80px;
+.result{
+    background:#222;
+    padding:15px;
+    border-radius:10px;
+    min-height:60px;
 }
 </style>
 </head>
 <body>
 
-<div class="container">
-<h2>Муринский Переводчик</h2>
+<h2>Переводчик вашего языка</h2>
 
 <textarea id="input" placeholder="Введите текст..."></textarea>
 
-<button class="translate" onclick="toMurinsky()">Русский → Муринский</button>
-<button class="reverse" onclick="toRussian()">Муринский → Русский</button>
-<button class="clear" onclick="clearText()">Очистить</button>
+<button onclick="toLang()">Обычный → Ваш язык</button>
+<button onclick="toNormal()">Ваш язык → Обычный</button>
 
 <div class="result" id="output"></div>
-</div>
 
 <script>
-const exceptions = {
-    "ч": "я",
-    "друн": "друг",
-    "доной": "домой",
-    "естч": "есть",
-    "илу": "иду",
-    "светл": "свет",
-    "гранч": "барьер",
-    "пакость": "зло"
+
+// исключения
+const exceptionsForward = {
+    "привет":"приыт",
+    "друг":"друн",
+    "я":"ч",
+    "сын":"сыр",
+    "видел":"видео"
 };
 
-function toMurinsky() {
+const exceptionsBackward = {
+    "приыт":"привет",
+    "друн":"друг",
+    "ч":"я",
+    "сыр":"сын",
+    "видео":"видел"
+};
+
+function toLang(){
     let text = document.getElementById("input").value.toLowerCase();
     let words = text.split(" ");
-    let result = words.map(word => {
-        for (let key in exceptions) {
-            if (exceptions[key] === word) return key;
-        }
-        if (word.length > 3) return word + "ность";
+    let result = words.map(word=>{
+        if(exceptionsForward[word]) return exceptionsForward[word];
+        if(word.endsWith("а")) return word.slice(0,-1)+"ы";
+        return word+"ость";
+    });
+    document.getElementById("output").innerText = result.join(" ");
+}
+
+function toNormal(){
+    let text = document.getElementById("input").value.toLowerCase();
+    let words = text.split(" ");
+    let result = words.map(word=>{
+        if(exceptionsBackward[word]) return exceptionsBackward[word];
+        if(word.endsWith("ость")) return word.slice(0,-5);
+        if(word.endsWith("ы")) return word.slice(0,-1)+"а";
         return word;
     });
     document.getElementById("output").innerText = result.join(" ");
 }
 
-function toRussian() {
-    let text = document.getElementById("input").value.toLowerCase();
-    let words = text.split(" ");
-    let result = words.map(word => {
-        if (exceptions[word]) return exceptions[word];
-        if (word.endsWith("ность")) return word.slice(0, -6);
-        if (word.endsWith("ость")) return word.slice(0, -4);
-        return word;
-    });
-    document.getElementById("output").innerText = result.join(" ");
-}
-
-function clearText() {
-    document.getElementById("input").value = "";
-    document.getElementById("output").innerText = "";
-}
 </script>
 
 </body>
