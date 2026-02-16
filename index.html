@@ -3,133 +3,182 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DdwS Cipher</title>
+<title>shivrowka</title>
+
 <style>
+:root{
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --text:#111;
+    --accent:linear-gradient(135deg,#667eea,#764ba2);
+}
+
+body.dark{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --text:#ffffff;
+    --accent:linear-gradient(135deg,#06b6d4,#3b82f6);
+}
+
 body{
-    background:#0f0f0f;
-    color:white;
-    font-family:Arial;
+    margin:0;
     padding:20px;
+    background:var(--bg);
+    color:var(--text);
+    font-family:Inter, Helvetica, Arial, sans-serif;
+    transition:0.3s;
 }
-input, textarea{
+
+.logo{
+    text-align:center;
+    font-size:26px;
+    letter-spacing:6px;
+    font-weight:500;
+    margin-bottom:30px;
+}
+
+.card{
+    background:var(--card);
+    padding:20px;
+    border-radius:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom:20px;
+}
+
+textarea,input{
     width:100%;
-    margin-bottom:15px;
-    border-radius:12px;
     border:none;
-    padding:12px;
+    border-radius:14px;
+    padding:14px;
     font-size:16px;
+    margin-bottom:15px;
+    background:rgba(0,0,0,0.05);
+    color:var(--text);
 }
-textarea{height:120px;}
-button{
+
+body.dark textarea,
+body.dark input{
+    background:rgba(255,255,255,0.08);
+}
+
+.button{
     width:100%;
     padding:14px;
-    margin-bottom:15px;
     border:none;
-    border-radius:12px;
+    border-radius:14px;
     font-size:16px;
-    font-weight:bold;
+    font-weight:600;
+    color:white;
     cursor:pointer;
+    background:var(--accent);
+    transition:0.2s;
+}
+
+.button:hover{
+    transform:translateY(-2px);
+    box-shadow:0 6px 20px rgba(0,0,0,0.2);
+}
+
+.settings{
+    text-align:right;
+    margin-bottom:15px;
+    font-size:14px;
 }
 </style>
 </head>
 <body>
 
-<h2>Русский ↔ DdwS</h2>
+<div class="logo">shivrowka</div>
 
-<textarea id="text" placeholder="Введите текст..."></textarea>
+<div class="settings">
+    <label>
+        <input type="checkbox" id="themeToggle"> Тёмная тема
+    </label>
+</div>
 
-<input id="numberKey" placeholder="Введите номер (только цифры)" 
-       inputmode="numeric" pattern="[0-9]*">
-
-<button onclick="encrypt()">Русский → DdwS</button>
-<button onclick="decrypt()">DdwS → Русский</button>
+<div class="card">
+    <textarea id="text" placeholder="Введите текст..."></textarea>
+    <input id="numberKey" placeholder="Введите номер (только цифры)" inputmode="numeric">
+    <button class="button" onclick="encrypt()">Русский → ShiVrowKa</button>
+    <button class="button" onclick="decrypt()">ShiVrowKa → Русский</button>
+</div>
 
 <script>
 
-async function deriveKey(password){
-    const enc = new TextEncoder();
+// ===== ТЕМА =====
+const toggle = document.getElementById("themeToggle");
 
-    const keyMaterial = await crypto.subtle.importKey(
-        "raw",
-        enc.encode(password),
-        {name:"PBKDF2"},
-        false,
-        ["deriveKey"]
-    );
-
-    return crypto.subtle.deriveKey(
-        {
-            name:"PBKDF2",
-            salt:enc.encode("ddws_salt"),
-            iterations:100000,
-            hash:"SHA-256"
-        },
-        keyMaterial,
-        {name:"AES-GCM", length:256},
-        false,
-        ["encrypt","decrypt"]
-    );
+if(localStorage.getItem("theme")==="dark"){
+    document.body.classList.add("dark");
+    toggle.checked=true;
 }
 
-async function encrypt(){
-    const text = document.getElementById("text").value;
-    const number = document.getElementById("numberKey").value;
+toggle.addEventListener("change",()=>{
+    if(toggle.checked){
+        document.body.classList.add("dark");
+        localStorage.setItem("theme","dark");
+    }else{
+        document.body.classList.remove("dark");
+        localStorage.setItem("theme","light");
+    }
+});
+
+// ===== ШИФР =====
+function getShift(number){
+    let sum=0;
+    for(let i=0;i<number.length;i++){
+        sum+=parseInt(number[i]);
+    }
+    return sum;
+}
+
+function encrypt(){
+    const text=document.getElementById("text").value;
+    const number=document.getElementById("numberKey").value;
 
     if(!text || !number.match(/^[0-9]+$/)){
-        alert("Введите текст и номер (только цифры)");
+        alert("Введите текст и номер");
         return;
     }
 
-    const key = await deriveKey(number);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const shift=getShift(number);
+    let result="";
 
-    const encrypted = await crypto.subtle.encrypt(
-        {name:"AES-GCM", iv},
-        key,
-        new TextEncoder().encode(text)
-    );
+    for(let i=0;i<text.length;i++){
+        result+=String.fromCharCode(text.charCodeAt(i)+shift);
+    }
 
-    const combined = new Uint8Array(iv.length + encrypted.byteLength);
-    combined.set(iv);
-    combined.set(new Uint8Array(encrypted), iv.length);
-
-    document.getElementById("text").value =
-        btoa(String.fromCharCode(...combined));
+    document.getElementById("text").value=
+        btoa(unescape(encodeURIComponent(result)));
 }
 
-async function decrypt(){
-    const cipherText = document.getElementById("text").value;
-    const number = document.getElementById("numberKey").value;
+function decrypt(){
+    const cipher=document.getElementById("text").value;
+    const number=document.getElementById("numberKey").value;
 
-    if(!cipherText || !number.match(/^[0-9]+$/)){
-        alert("Введите зашифрованный текст и номер");
+    if(!cipher || !number.match(/^[0-9]+$/)){
+        alert("Введите текст и номер");
         return;
     }
 
     try{
-        const data = atob(cipherText);
-        const bytes = new Uint8Array([...data].map(c=>c.charCodeAt(0)));
+        const shift=getShift(number);
+        const decoded=decodeURIComponent(escape(atob(cipher)));
+        let result="";
 
-        const iv = bytes.slice(0,12);
-        const encrypted = bytes.slice(12);
+        for(let i=0;i<decoded.length;i++){
+            result+=String.fromCharCode(decoded.charCodeAt(i)-shift);
+        }
 
-        const key = await deriveKey(number);
-
-        const decrypted = await crypto.subtle.decrypt(
-            {name:"AES-GCM", iv},
-            key,
-            encrypted
-        );
-
-        document.getElementById("text").value =
-            new TextDecoder().decode(decrypted);
+        document.getElementById("text").value=result;
 
     }catch{
-        document.getElementById("text").value = "Мусор (неверный номер)";
+        document.getElementById("text").value=
+        "ЛвщжылчдаодашезЗяхдкзужвьслсщж";
     }
 }
 
 </script>
 
 </body>
-</html> 
+</html>
