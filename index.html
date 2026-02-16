@@ -3,94 +3,133 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Переводчик языка Друн</title>
+<title>DdwS Cipher</title>
 <style>
 body{
-    background:#111;
+    background:#0f0f0f;
     color:white;
     font-family:Arial;
     padding:20px;
 }
-textarea{
+input, textarea{
     width:100%;
-    height:120px;
-    margin-bottom:10px;
-    border-radius:10px;
+    margin-bottom:15px;
+    border-radius:12px;
     border:none;
-    padding:10px;
+    padding:12px;
     font-size:16px;
 }
+textarea{height:120px;}
 button{
     width:100%;
-    padding:12px;
-    margin-bottom:10px;
+    padding:14px;
+    margin-bottom:15px;
     border:none;
-    border-radius:10px;
+    border-radius:12px;
     font-size:16px;
+    font-weight:bold;
     cursor:pointer;
-}
-.result{
-    background:#222;
-    padding:15px;
-    border-radius:10px;
-    min-height:60px;
 }
 </style>
 </head>
 <body>
 
-<h2>Переводчик вашего языка</h2>
+<h2>Русский ↔ DdwS</h2>
 
-<textarea id="input" placeholder="Введите текст..."></textarea>
+<textarea id="text" placeholder="Введите текст..."></textarea>
 
-<button onclick="toLang()">Обычный → Ваш язык</button>
-<button onclick="toNormal()">Ваш язык → Обычный</button>
+<input id="numberKey" placeholder="Введите номер (только цифры)" 
+       inputmode="numeric" pattern="[0-9]*">
 
-<div class="result" id="output"></div>
+<button onclick="encrypt()">Русский → DdwS</button>
+<button onclick="decrypt()">DdwS → Русский</button>
 
 <script>
 
-// исключения
-const exceptionsForward = {
-    "привет":"приыт",
-    "друг":"друн",
-    "я":"ч",
-    "сын":"сыр",
-    "видел":"видео"
-};
+async function deriveKey(password){
+    const enc = new TextEncoder();
 
-const exceptionsBackward = {
-    "приыт":"привет",
-    "друн":"друг",
-    "ч":"я",
-    "сыр":"сын",
-    "видео":"видел"
-};
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(password),
+        {name:"PBKDF2"},
+        false,
+        ["deriveKey"]
+    );
 
-function toLang(){
-    let text = document.getElementById("input").value.toLowerCase();
-    let words = text.split(" ");
-    let result = words.map(word=>{
-        if(exceptionsForward[word]) return exceptionsForward[word];
-        if(word.endsWith("а")) return word.slice(0,-1)+"ы";
-        return word+"ость";
-    });
-    document.getElementById("output").innerText = result.join(" ");
+    return crypto.subtle.deriveKey(
+        {
+            name:"PBKDF2",
+            salt:enc.encode("ddws_salt"),
+            iterations:100000,
+            hash:"SHA-256"
+        },
+        keyMaterial,
+        {name:"AES-GCM", length:256},
+        false,
+        ["encrypt","decrypt"]
+    );
 }
 
-function toNormal(){
-    let text = document.getElementById("input").value.toLowerCase();
-    let words = text.split(" ");
-    let result = words.map(word=>{
-        if(exceptionsBackward[word]) return exceptionsBackward[word];
-        if(word.endsWith("ость")) return word.slice(0,-5);
-        if(word.endsWith("ы")) return word.slice(0,-1)+"а";
-        return word;
-    });
-    document.getElementById("output").innerText = result.join(" ");
+async function encrypt(){
+    const text = document.getElementById("text").value;
+    const number = document.getElementById("numberKey").value;
+
+    if(!text || !number.match(/^[0-9]+$/)){
+        alert("Введите текст и номер (только цифры)");
+        return;
+    }
+
+    const key = await deriveKey(number);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+
+    const encrypted = await crypto.subtle.encrypt(
+        {name:"AES-GCM", iv},
+        key,
+        new TextEncoder().encode(text)
+    );
+
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv);
+    combined.set(new Uint8Array(encrypted), iv.length);
+
+    document.getElementById("text").value =
+        btoa(String.fromCharCode(...combined));
+}
+
+async function decrypt(){
+    const cipherText = document.getElementById("text").value;
+    const number = document.getElementById("numberKey").value;
+
+    if(!cipherText || !number.match(/^[0-9]+$/)){
+        alert("Введите зашифрованный текст и номер");
+        return;
+    }
+
+    try{
+        const data = atob(cipherText);
+        const bytes = new Uint8Array([...data].map(c=>c.charCodeAt(0)));
+
+        const iv = bytes.slice(0,12);
+        const encrypted = bytes.slice(12);
+
+        const key = await deriveKey(number);
+
+        const decrypted = await crypto.subtle.decrypt(
+            {name:"AES-GCM", iv},
+            key,
+            encrypted
+        );
+
+        document.getElementById("text").value =
+            new TextDecoder().decode(decrypted);
+
+    }catch{
+        document.getElementById("text").value = "Мусор (неверный номер)";
+    }
 }
 
 </script>
 
 </body>
-</html>
+</html> 
